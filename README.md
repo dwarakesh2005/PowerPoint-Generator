@@ -106,12 +106,7 @@ powerpoint-generator/
 ├── index.html              # Main application
 ├── README.md               # This documentation
 ├── LICENSE                 # MIT License
-├── docs/                   # Additional documentation
-│   ├── technical-guide.md  # Technical implementation details
-│   └── api-integration.md  # API integration guide
-└── examples/               # Sample templates and outputs
-    ├── templates/          # Sample PowerPoint templates
-    └── outputs/            # Example generated presentations
+
 ```
 
 ## 🎨 Supported Template Styles
