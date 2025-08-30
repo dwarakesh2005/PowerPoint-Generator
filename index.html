@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerPoint Generator - Text to Presentation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .step {
+            margin-bottom: 40px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .step:nth-child(1) { animation-delay: 0.1s; }
+        .step:nth-child(2) { animation-delay: 0.2s; }
+        .step:nth-child(3) { animation-delay: 0.3s; }
+        .step:nth-child(4) { animation-delay: 0.4s; }
+        .step:nth-child(5) { animation-delay: 0.5s; }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .step-title {
+            font-size: 1.4em;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .input-group textarea,
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .input-group textarea:focus,
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .input-group textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .template-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .template-btn {
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            user-select: none;
+        }
+
+        .template-btn:hover {
+            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .template-btn.selected {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border-color: #2980b9;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .generate-btn:hover {
+            background: linear-gradient(135deg, #229954 0%, #27ae60 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(39, 174, 96, 0.3);
+        }
+
+        .generate-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .preview-section {
+            display: none;
+            margin-top: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .preview-slides {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .slide-preview {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .slide-preview:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .slide-header {
+            background: #2c3e50;
+            color: white;
+            padding: 10px 15px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .slide-content {
+            padding: 20px;
+            min-height: 150px;
+        }
+
+        .slide-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .slide-text {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .slide-notes {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 8px;
+            margin-top: 10px;
+            font-size: 10px;
+            color: #856404;
+        }
+
+        .error-message {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .success-message {
+            background: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .download-btn:hover {
+            background: linear-gradient(135deg, #7d3c98 0%, #8e44ad 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(142, 68, 173, 0.3);
+        }
+
+        .api-info {
+            background: #e8f4fd;
+            border: 1px solid #3498db;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .api-info h4 {
+            color: #2980b9;
+            margin-bottom: 10px;
+        }
+
+        .api-info ul {
+            color: #2c3e50;
+            padding-left: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #ecf0f1;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+
+        .advanced-options {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .advanced-options h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .demo-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .template-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            .preview-slides {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>PowerPoint Generator</h1>
+            <p>Transform your text into structured presentations</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Step 1: Input Text -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">1</div>
+                    <div class="step-title">Input Your Content</div>
+                </div>
+                <div class="input-group">
+                    <label for="inputText">Paste your text, markdown, or prose content:</label>
+                    <textarea id="inputText" placeholder="Enter your content here... You can paste markdown, long-form text, bullet points, or any structured content.
+
+Example:
+# Company Overview
+Our startup revolutionizes the way people interact with AI...
+
+## Market Opportunity
+The global AI market is expected to reach $1.8 trillion by 2030...
+
+## Our Solution
+We've developed a unique approach that..."></textarea>
+                </div>
+            </div>
+
+            <!-- Step 2: Guidance and Style -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">2</div>
+                    <div class="step-title">Style & Guidance</div>
+                </div>
+                <div class="input-group">
+                    <label for="guidance">Presentation guidance (optional):</label>
+                    <input type="text" id="guidance" placeholder="e.g., 'turn into an investor pitch deck', 'make it technical and detailed', 'focus on key benefits'">
+                </div>
+                <div class="template-buttons">
+                    <div class="template-btn" data-template="investor" data-guidance="Create an investor pitch deck with problem, solution, market, traction, and ask">
+                        <strong>Investor Pitch</strong><br>
+                        <small>Professional, persuasive, metrics-focused</small>
+                    </div>
+                    <div class="template-btn" data-template="technical" data-guidance="Structure as a technical report with methodology, results, and conclusions">
+                        <strong>Technical Report</strong><br>
+                        <small>Detailed, analytical, data-driven</small>
+                    </div>
+                    <div class="template-btn" data-template="sales" data-guidance="Build a sales presentation focusing on benefits, value proposition, and call-to-action">
+                        <strong>Sales Deck</strong><br>
+                        <small>Compelling, benefit-focused, action-oriented</small>
+                    </div>
+                    <div class="template-btn" data-template="educational" data-guidance="Create an educational presentation with clear learning objectives and examples">
+                        <strong>Educational</strong><br>
+                        <small>Clear, structured, easy to follow</small>
+                    </div>
+                </div>
+
+                <div class="advanced-options">
+                    <h3>Advanced Options</h3>
+                    <div class="input-group">
+                        <label for="slideCount">Target number of slides (auto if left blank):</label>
+                        <input type="number" id="slideCount" min="3" max="20" placeholder="Auto-detect based on content">
+                    </div>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="generateNotes" checked>
+                            <label for="generateNotes">Generate speaker notes</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="includeTransitions" checked>
+                            <label for="includeTransitions">Add slide transitions</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: AI Configuration -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">3</div>
+                    <div class="step-title">AI Configuration</div>
+                </div>
+                <div class="input-group">
+                    <label for="apiProvider">AI Provider:</label>
+                    <select id="apiProvider">
+                        <option value="default">Default OpenAI (Pre-configured)</option>
+                        <option value="openai">Custom OpenAI</option>
+                        <option value="gemini">Google Gemini</option>
+                    </select>
+                </div>
+                <div class="input-group" id="customApiGroup" style="display: none;">
+                    <label for="apiKey">Custom API Key:</label>
+                    <input type="password" id="apiKey" placeholder="Enter your API key here - it's only used for this session">
+                </div>
+                <div class="demo-notice" id="defaultApiNotice">
+                    ✅ Using pre-configured OpenAI API - no additional setup required!
+                </div>
+                <div class="api-info" id="customApiInfo" style="display: none;">
+                    <h4>Privacy & Security</h4>
+                    <ul>
+                        <li>Your API key is never stored, logged, or transmitted to our servers</li>
+                        <li>All processing happens in your browser</li>
+                        <li>Your content and keys are automatically cleared when you close the tab</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Step 4: Generate -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">4</div>
+                    <div class="step-title">Generate Presentation</div>
+                </div>
+                <button class="generate-btn" id="generateBtn">
+                    Generate PowerPoint Presentation
+                </button>
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <span id="loadingText">Analyzing your content...</span>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div class="preview-section" id="previewSection">
+                <h2 style="color: #2c3e50; margin-bottom: 20px;">Slide Preview</h2>
+                <p style="color: #666; margin-bottom: 20px;">Review your generated slides before downloading:</p>
+                <div class="preview-slides" id="previewSlides"></div>
+                <button class="download-btn" id="downloadBtn">
+                    Download PowerPoint (.pptx)
+                </button>
+            </div>
+
+            <!-- Messages -->
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let generatedSlides = [];
+        let selectedTemplate = null;
+
+        // Default API configuration (your credentials)
+        const DEFAULT_API_CONFIG = {
+            apiKey: 'eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6IjIzZjIwMDE5MTVAZHMuc3R1ZHkuaWl0bS5hYy5pbiJ9.DqxIp0WMnSQCmn5L25fVVBpIFAUqocHHgwU8pwIZMh0',
+            baseUrl: 'https://aipipe.org/openai/v1'
+        };
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            setupTemplateButtons();
+            setupApiProviderHandling();
+            setupGenerateButton();
+        });
+
+        // Template selection functionality
+        function setupTemplateButtons() {
+            document.querySelectorAll('.template-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove previous selection
+                    document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('selected'));
+                    
+                    // Add selection to clicked button
+                    this.classList.add('selected');
+                    selectedTemplate = this.dataset.template;
+                    
+                    // Update guidance input with template-specific guidance
+                    const guidanceInput = document.getElementById('guidance');
+                    const templateGuidance = this.dataset.guidance;
+                    
+                    if (!guidanceInput.value.trim()) {
+                        guidanceInput.value = templateGuidance;
+                    }
+                });
+            });
+        }
+
+        // API provider handling
+        function setupApiProviderHandling() {
+            const providerSelect = document.getElementById('apiProvider');
+            const customApiGroup = document.getElementById('customApiGroup');
+            const defaultApiNotice = document.getElementById('defaultApiNotice');
+            const customApiInfo = document.getElementById('customApiInfo');
+
+            providerSelect.addEventListener('change', function() {
+                if (this.value === 'default') {
+                    customApiGroup.style.display = 'none';
+                    defaultApiNotice.style.display = 'block';
+                    customApiInfo.style.display = 'none';
+                } else {
+                    customApiGroup.style.display = 'block';
+                    defaultApiNotice.style.display = 'none';
+                    customApiInfo.style.display = 'block';
+                }
+            });
+        }
+
+        // Progress bar animation
+        function updateProgress(percentage, text) {
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('loadingText').textContent = text;
+        }
+
+        // Show messages
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => errorDiv.style.display = 'none', 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => successDiv.style.display = 'none', 3000);
+        }
+
+        // AI API call with multiple provider support
+        async function callAI(content, guidance, targetSlides = null) {
+            const apiProvider = document.getElementById('apiProvider').value;
+            let apiKey, baseUrl, model;
+
+            if (apiProvider === 'default') {
+                apiKey = DEFAULT_API_CONFIG.apiKey;
+                baseUrl = DEFAULT_API_CONFIG.baseUrl;
+                model = 'gpt-4';
+            } else {
+                apiKey = document.getElementById('apiKey').value.trim();
+                if (!apiKey) {
+                    throw new Error('API key is required for custom providers');
+                }
+                
+                switch (apiProvider) {
+                    case 'openai':
+                        baseUrl = 'https://api.openai.com/v1';
+                        model = 'gpt-4';
+                        break;
+                    case 'gemini':
+                        baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+                        model = 'gemini-pro';
+                        break;
+                    default:
+                        throw new Error('Unsupported API provider');
+                }
+            }
+
+            const slideCountGuidance = targetSlides ? `Create exactly ${targetSlides} slides.` : 'Create an appropriate number of slides (typically 6-12 based on content length).';
+            
+            const templateGuidance = selectedTemplate ? getTemplateSpecificGuidance(selectedTemplate) : '';
+            
+            const prompt = `You are a PowerPoint presentation expert. Analyze the following content and create a well-structured presentation.
+
+Content to convert: "${content}"
+
+Guidance: ${guidance || 'Create a professional, well-structured presentation'}
+${templateGuidance ? 'Template Style: ' + templateGuidance : ''}
+
+Requirements:
+- ${slideCountGuidance}
+- Include a compelling title slide as the first slide
+- Break content into logical sections with clear, engaging headings
+- Use bullet points and concise text suitable for slides (max 4 bullets per slide)
+- Generate helpful speaker notes for each slide if requested
+- End with a strong conclusion/next steps slide
+- Make slides visually scannable and presentation-ready
+- Ensure smooth flow between slides
+
+Return ONLY a valid JSON object with this exact structure:
+{
+  "slides": [
+    {
+      "title": "Slide Title",
+      "content": ["Bullet point 1", "Bullet point 2", "Bullet point 3"],
+      "speakerNotes": "Detailed speaker notes for this slide with talking points and elaboration",
+      "slideType": "title|content|conclusion"
+    }
+  ]
+}
+
+Make the presentation engaging, professional, and actionable. Focus on clear value propositions and key takeaways.`;
+
+            try {
+                let response;
+                
+                if (apiProvider === 'gemini') {
+                    // Gemini API format is different
+                    response = await fetch(`${baseUrl}/models/${model}:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{ text: prompt }]
+                            }],
+                            generationConfig: {
+                                maxOutputTokens: 4000,
+                                temperature: 0.7
+                            }
+                        })
+                    });
+                } else {
+                    // OpenAI compatible format (for both default and custom OpenAI)
+                    response = await fetch(`${baseUrl}/chat/completions`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: model,
+                            messages: [{ role: 'user', content: prompt }],
+                            max_tokens: 4000,
+                            temperature: 0.7
+                        })
+                    });
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`API request failed: ${response.status} - ${errorData.error?.message || response.statusText}`);
+                }
+
+                const data = await response.json();
+                let responseContent;
+                
+                if (apiProvider === 'gemini') {
+                    responseContent = data.candidates[0].content.parts[0].text.trim();
+                } else {
+                    responseContent = data.choices[0].message.content.trim();
+                }
+                
+                // Clean up response and parse JSON
+                if (responseContent.startsWith('```json')) {
+                    responseContent = responseContent.slice(7);
+                }
+                if (responseContent.endsWith('```')) {
+                    responseContent = responseContent.slice(0, -3);
+                }
+                
+                const parsedResponse = JSON.parse(responseContent);
+                
+                // Validate response structure
+                if (!parsedResponse.slides || !Array.isArray(parsedResponse.slides)) {
+                    throw new Error('Invalid response format from AI');
+                }
+                
+                return parsedResponse;
+            } catch (error) {
+                console.error('AI API call failed:', error);
+                // Fallback to rule-based generation
+                return generateFallbackSlides(content, guidance, targetSlides);
+            }
+        }
+
+        function getTemplateSpecificGuidance(template) {
+            const guidance = {
+                investor: 'Structure as an investor pitch with: problem statement, solution overview, market opportunity, business model, traction/metrics, competitive advantage, financial projections, funding ask, and next steps.',
+                technical: 'Format as a technical presentation with: executive summary, methodology, technical approach, implementation details, results/findings, performance metrics, challenges overcome, and recommendations.',
+                sales: 'Create a sales-focused deck with: customer pain points, solution benefits, value proposition, case studies/testimonials, pricing/packages, competitive advantages, implementation process, and clear call-to-action.',
+                educational: 'Structure as an educational presentation with: learning objectives, key concepts, detailed explanations, examples and applications, practice exercises, summary, and further resources.'
+            };
+            return guidance[template] || '';
+        }
+
+        // Fallback slides generation (rule-based)
+        function generateFallbackSlides(content, guidance, targetSlides) {
+            const slides = [];
+            
+            // Parse content into sections
+            const lines = content.split('\n').filter(line => line.trim());
+            const sections = [];
+            let currentSection = { title: '', content: [] };
+            
+            for (const line of lines) {
+                if (line.match(/^#+\s+/) || line.match(/^[A-Z][^.]*:?\s*$/) && line.length < 60) {
+                    // This looks like a heading
+                    if (currentSection.title || currentSection.content.length > 0) {
+                        sections.push(currentSection);
+                    }
+                    currentSection = { 
+                        title: line.replace(/^#+\s*/, '').trim(),
+                        content: []
+                    };
+                } else if (line.trim().length > 10) {
+                    // Regular content
+                    if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) {
+                        currentSection.content.push(line.replace(/^[-*•]\s*/, '').trim());
+                    } else {
+                        // Break long sentences into bullet points
+                        const sentences = line.split(/[.!?]+/).filter(s => s.trim().length > 20);
+                        currentSection.content.push(...sentences.map(s => s.trim()));
+                    }
+                }
+            }
+            
+            if (currentSection.title || currentSection.content.length > 0) {
+                sections.push(currentSection);
+            }
+
+            // Create title slide
+            const firstSection = sections[0] || { title: 'Presentation', content: [] };
+            slides.push({
+                title: firstSection.title || 'AI-Generated Presentation',
+                content: [
+                    'Created from your input content',
+                    'Professional formatting applied',
+                    'Ready for presentation'
+                ],
+                speakerNotes: 'Welcome to this presentation. Today we will cover the key points from your input content, structured for maximum clarity and impact.',
+                slideType: 'title'
+            });
+
+            // Create content slides
+            const contentSections = sections.slice(firstSection.title ? 1 : 0);
+            const maxSlides = targetSlides ? Math.max(1, targetSlides - 2) : Math.min(8, contentSections.length);
+            
+            for (let i = 0; i < Math.min(maxSlides, contentSections.length); i++) {
+                const section = contentSections[i];
+                const bulletPoints = section.content.slice(0, 4); // Max 4 bullets per slide
+                
+                slides.push({
+                    title: section.title || `Key Point ${i + 1}`,
+                    content: bulletPoints.length > 0 ? bulletPoints : [`Content from section ${i + 1}`],
+                    speakerNotes: `Elaborate on these key points: ${bulletPoints.slice(0, 2).join('. ')}. Provide examples and engage with your audience.`,
+                    slideType: 'content'
+                });
+            }
+
+            // Add conclusion slide
+            slides.push({
+                title: 'Key Takeaways & Next Steps',
+                content: [
+                    'Summary of main insights',
+                    'Actionable recommendations',
+                    'Questions and discussion',
+                    'Thank you for your attention'
+                ],
+                speakerNotes: 'Wrap up with a strong conclusion that reinforces your main message. Open the floor for questions and provide clear next steps for your audience.',
+                slideType: 'conclusion'
+            });
+
+            return { slides };
+        }
+
+        // PowerPoint file creation
+        async function createPowerPointFile(slides) {
+            const zip = new JSZip();
+            
+            // Create basic PowerPoint structure
+            await createPowerPointStructure(zip, slides);
+            
+            // Generate the file
+            const content = await zip.generateAsync({ type: 'blob' });
+            return content;
+        }
+
+        async function createPowerPointStructure(zip, slides) {
+            // Create [Content_Types].xml
+            zip.file('[Content_Types].xml', createContentTypesXml(slides.length));
+            
+            // Create _rels/.rels
+            zip.file('_rels/.rels', createMainRelsXml());
+            
+            // Create ppt folder structure
+            const pptFolder = zip.folder('ppt');
+            const pptRelsFolder = pptFolder.folder('_rels');
+            const slidesFolder = pptFolder.folder('slides');
+            const slideRelsFolder = slidesFolder.folder('_rels');
+            const themeFolder = pptFolder.folder('theme');
+            
+            // Create presentation.xml
+            pptFolder.file('presentation.xml', createPresentationXml(slides.length));
+            pptRelsFolder.file('presentation.xml.rels', createPresentationRelsXml(slides.length));
+            
+            // Create app.xml and core.xml
+            const docPropsFolder = zip.folder('docProps');
+            docPropsFolder.file('app.xml', createAppXml(slides.length));
+            docPropsFolder.file('core.xml', createCoreXml());
+            
+            // Create theme
+            themeFolder.file('theme1.xml', createThemeXml());
+            
+            // Create slides
+            for (let i = 0; i < slides.length; i++) {
+                const slideXml = createSlideXml(slides[i], i + 1);
+                slidesFolder.file(`slide${i + 1}.xml`, slideXml);
+                slideRelsFolder.file(`slide${i + 1}.xml.rels`, createSlideRelsXml());
+            }
+            
+            // Add slide layouts and masters
+            const slideLayoutsFolder = pptFolder.folder('slideLayouts');
+            const slideMastersFolder = pptFolder.folder('slideMasters');
+            const slideLayoutRelsFolder = slideLayoutsFolder.folder('_rels');
+            const slideMasterRelsFolder = slideMastersFolder.folder('_rels');
+            
+            slideLayoutsFolder.file('slideLayout1.xml', createSlideLayoutXml());
+            slideLayoutRelsFolder.file('slideLayout1.xml.rels', createSlideLayoutRelsXml());
+            slideMastersFolder.file('slideMaster1.xml', createSlideMasterXml());
+            slideMasterRelsFolder.file('slideMaster1.xml.rels', createSlideMasterRelsXml());
+        }
+
+        function createContentTypesXml(slideCount) {
+            let slideOverrides = '';
+            for (let i = 1; i <= slideCount; i++) {
+                slideOverrides += `<Override PartName="/ppt/slides/slide${i}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`;
+            }
+            
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+    <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+    <Default Extension="xml" ContentType="application/xml"/>
+    <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+    <Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>
+    <Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>
+    <Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
+    <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+    <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+    ${slideOverrides}
+</Types>`;
+        }
+
+        function createMainRelsXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/>
+    <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+    <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+        }
+
+        function createPresentationXml(slideCount) {
+            let slideIdList = '';
+            
+            for (let i = 1; i <= slideCount; i++) {
+                slideIdList += `<p:sldId id="${255 + i}" r:id="rId${i + 3}"/>`;
+            }
+
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+    <p:sldMasterIdLst>
+        <p:sldMasterId id="2147483648" r:id="rId1"/>
+    </p:sldMasterIdLst>
+    <p:sldIdLst>
+        ${slideIdList}
+    </p:sldIdLst>
+    <p:sldSz cx="9144000" cy="6858000" type="screen4x3"/>
+    <p:notesSz cx="6858000" cy="9144000"/>
+    <p:defaultTextStyle>
+        <a:defPPr>
+            <a:defRPr lang="en-US"/>
+        </a:defPPr>
+    </p:defaultTextStyle>
+</p:presentation>`;
+        }
+
+        function createPresentationRelsXml(slideCount) {
+            let relationships = `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
+            <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>`;
+            
+            for (let i = 1; i <= slideCount; i++) {
+                relationships += `<Relationship Id="rId${i + 3}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i}.xml"/>`;
+            }
+
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    ${relationships}
+</Relationships>`;
+        }
+
+        function createSlideXml(slide, slideNumber) {
+            const isTitle = slide.slideType === 'title';
+            const contentElements = slide.content.map((item, index) => {
+                return `<a:p><a:pPr lvl="0"><a:buChar char="•"/></a:pPr><a:r><a:rPr lang="en-US" sz="1800" dirty="0"/><a:t>${escapeXml(item)}</a:t></a:r></a:p>`;
+            }).join('');
+
+            const titleShape = `
+                <p:sp>
+                    <p:nvSpPr>
+                        <p:cNvPr id="2" name="Title 1"/>
+                        <p:cNvSpPr>
+                            <a:spLocks noGrp="1"/>
+                        </p:cNvSpPr>
+                        <p:nvPr>
+                            <p:ph type="${isTitle ? 'ctrTitle' : 'title'}"/>
+                        </p:nvPr>
+                    </p:nvSpPr>
+                    <p:spPr>
+                        <a:xfrm>
+                            <a:off x="${isTitle ? '1524000' : '457200'}" y="${isTitle ? '1043051' : '274638'}"/>
+                            <a:ext cx="${isTitle ? '6096000' : '8229600'}" cy="${isTitle ? '1325563' : '1143000'}"/>
+                        </a:xfrm>
+                    </p:spPr>
+                    <p:txBody>
+                        <a:bodyPr wrap="none" rtlCol="0">
+                            <a:spAutoFit/>
+                        </a:bodyPr>
+                        <a:lstStyle/>
+                        <a:p>
+                            <a:pPr algn="ctr"/>
+                            <a:r>
+                                <a:rPr lang="en-US" sz="${isTitle ? '4400' : '3200'}" b="1" dirty="0">
+                                    <a:solidFill>
+                                        <a:schemeClr val="tx1"/>
+                                    </a:solidFill>
+                                </a:rPr>
+                                <a:t>${escapeXml(slide.title)}</a:t>
+                            </a:r>
+                        </a:p>
+                    </p:txBody>
+                </p:sp>`;
+
+            const contentShape = !isTitle ? `
+                <p:sp>
+                    <p:nvSpPr>
+                        <p:cNvPr id="3" name="Content Placeholder 2"/>
+                        <p:cNvSpPr>
+                            <a:spLocks noGrp="1"/>
+                        </p:cNvSpPr>
+                        <p:nvPr>
+                            <p:ph idx="1"/>
+                        </p:nvPr>
+                    </p:nvSpPr>
+                    <p:spPr>
+                        <a:xfrm>
+                            <a:off x="457200" y="1600200"/>
+                            <a:ext cx="8229600" cy="4525963"/>
+                        </a:xfrm>
+                    </p:spPr>
+                    <p:txBody>
+                        <a:bodyPr wrap="none" rtlCol="0">
+                            <a:spAutoFit/>
+                        </a:bodyPr>
+                        <a:lstStyle/>
+                        ${contentElements}
+                    </p:txBody>
+                </p:sp>` : '';
+
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+    <p:cSld>
+        <p:spTree>
+            <p:nvGrpSpPr>
+                <p:cNvPr id="1" name=""/>
+                <p:cNvGrpSpPr/>
+                <p:nvPr/>
+            </p:nvGrpSpPr>
+            <p:grpSpPr>
+                <a:xfrm>
+                    <a:off x="0" y="0"/>
+                    <a:ext cx="0" cy="0"/>
+                    <a:chOff x="0" y="0"/>
+                    <a:chExt cx="0" cy="0"/>
+                </a:xfrm>
+            </p:grpSpPr>
+            ${titleShape}
+            ${contentShape}
+        </p:spTree>
+    </p:cSld>
+    <p:clrMapOvr>
+        <a:masterClrMapping/>
+    </p:clrMapOvr>
+</p:sld>`;
+        }
+
+        function createSlideRelsXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>`;
+        }
+
+        function createSlideLayoutRelsXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/>
+</Relationships>`;
+        }
+
+        function createSlideMasterRelsXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+    <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/>
+</Relationships>`;
+        }
+
+        function createThemeXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office Theme">
+    <a:themeElements>
+        <a:clrScheme name="Office">
+            <a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>
+            <a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>
+            <a:dk2><a:srgbClr val="44546A"/></a:dk2>
+            <a:lt2><a:srgbClr val="E7E6E6"/></a:lt2>
+            <a:accent1><a:srgbClr val="5B9BD5"/></a:accent1>
+            <a:accent2><a:srgbClr val="70AD47"/></a:accent2>
+            <a:accent3><a:srgbClr val="A5A5A5"/></a:accent3>
+            <a:accent4><a:srgbClr val="FFC000"/></a:accent4>
+            <a:accent5><a:srgbClr val="4472C4"/></a:accent5>
+            <a:accent6><a:srgbClr val="C5504B"/></a:accent6>
+            <a:hlink><a:srgbClr val="0563C1"/></a:hlink>
+            <a:folHlink><a:srgbClr val="954F72"/></a:folHlink>
+        </a:clrScheme>
+        <a:fontScheme name="Office">
+            <a:majorFont>
+                <a:latin typeface="Calibri Light" panose="020F0302020204030204"/>
+                <a:ea typeface=""/>
+                <a:cs typeface=""/>
+            </a:majorFont>
+            <a:minorFont>
+                <a:latin typeface="Calibri" panose="020F0502020204030204"/>
+                <a:ea typeface=""/>
+                <a:cs typeface=""/>
+            </a:minorFont>
+        </a:fontScheme>
+        <a:fmtScheme name="Office">
+            <a:fillStyleLst>
+                <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+                <a:gradFill rotWithShape="1">
+                    <a:gsLst>
+                        <a:gs pos="0"><a:schemeClr val="phClr"><a:lumMod val="110000"/><a:satMod val="105000"/><a:tint val="67000"/></a:schemeClr></a:gs>
+                        <a:gs pos="50000"><a:schemeClr val="phClr"><a:lumMod val="105000"/><a:satMod val="103000"/><a:tint val="73000"/></a:schemeClr></a:gs>
+                        <a:gs pos="100000"><a:schemeClr val="phClr"><a:lumMod val="105000"/><a:satMod val="109000"/><a:tint val="81000"/></a:schemeClr></a:gs>
+                    </a:gsLst>
+                    <a:lin ang="5400000" scaled="0"/>
+                </a:gradFill>
+                <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+            </a:fillStyleLst>
+            <a:lnStyleLst>
+                <a:ln w="6350" cap="flat" cmpd="sng" algn="ctr">
+                    <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+                    <a:prstDash val="solid"/>
+                </a:ln>
+                <a:ln w="12700" cap="flat" cmpd="sng" algn="ctr">
+                    <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+                    <a:prstDash val="solid"/>
+                </a:ln>
+                <a:ln w="19050" cap="flat" cmpd="sng" algn="ctr">
+                    <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+                    <a:prstDash val="solid"/>
+                </a:ln>
+            </a:lnStyleLst>
+            <a:effectStyleLst>
+                <a:effectStyle><a:effectLst/></a:effectStyle>
+                <a:effectStyle><a:effectLst/></a:effectStyle>
+                <a:effectStyle>
+                    <a:effectLst>
+                        <a:outerShdw blurRad="57150" dist="19050" dir="5400000" algn="ctr" rotWithShape="0">
+                            <a:srgbClr val="000000"><a:alpha val="63000"/></a:srgbClr>
+                        </a:outerShdw>
+                    </a:effectLst>
+                </a:effectStyle>
+            </a:effectStyleLst>
+            <a:bgFillStyleLst>
+                <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+                <a:solidFill><a:schemeClr val="phClr"><a:tint val="95000"/><a:satMod val="170000"/></a:schemeClr></a:solidFill>
+                <a:gradFill rotWithShape="1">
+                    <a:gsLst>
+                        <a:gs pos="0"><a:schemeClr val="phClr"><a:tint val="93000"/><a:satMod val="150000"/><a:shade val="98000"/><a:lumMod val="102000"/></a:schemeClr></a:gs>
+                        <a:gs pos="50000"><a:schemeClr val="phClr"><a:tint val="98000"/><a:satMod val="130000"/><a:shade val="90000"/><a:lumMod val="103000"/></a:schemeClr></a:gs>
+                        <a:gs pos="100000"><a:schemeClr val="phClr"><a:shade val="63000"/><a:satMod val="120000"/></a:schemeClr></a:gs>
+                    </a:gsLst>
+                    <a:lin ang="5400000" scaled="0"/>
+                </a:gradFill>
+            </a:bgFillStyleLst>
+        </a:fmtScheme>
+    </a:themeElements>
+</a:theme>`;
+        }
+
+        function createAppXml(slideCount) {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+    <Application>Microsoft Office PowerPoint</Application>
+    <PresentationFormat>Widescreen</PresentationFormat>
+    <Slides>${slideCount}</Slides>
+    <Notes>0</Notes>
+    <HiddenSlides>0</HiddenSlides>
+    <MMClips>0</MMClips>
+    <ScaleCrop>false</ScaleCrop>
+    <LinksUpToDate>false</LinksUpToDate>
+    <SharedDoc>false</SharedDoc>
+    <HyperlinksChanged>false</HyperlinksChanged>
+    <AppVersion>16.0000</AppVersion>
+</Properties>`;
+        }
+
+        function createCoreXml() {
+            const now = new Date().toISOString();
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <dc:title>AI Generated Presentation</dc:title>
+    <dc:creator>PowerPoint Generator</dc:creator>
+    <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
+    <dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>
+</cp:coreProperties>`;
+        }
+
+        function createSlideLayoutXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="obj" preserve="1">
+    <p:cSld name="Content with Caption">
+        <p:spTree>
+            <p:nvGrpSpPr>
+                <p:cNvPr id="1" name=""/>
+                <p:cNvGrpSpPr/>
+                <p:nvPr/>
+            </p:nvGrpSpPr>
+            <p:grpSpPr>
+                <a:xfrm>
+                    <a:off x="0" y="0"/>
+                    <a:ext cx="0" cy="0"/>
+                    <a:chOff x="0" y="0"/>
+                    <a:chExt cx="0" cy="0"/>
+                </a:xfrm>
+            </p:grpSpPr>
+            <p:sp>
+                <p:nvSpPr>
+                    <p:cNvPr id="2" name="Title 1"/>
+                    <p:cNvSpPr>
+                        <a:spLocks noGrp="1"/>
+                    </p:cNvSpPr>
+                    <p:nvPr>
+                        <p:ph type="title"/>
+                    </p:nvPr>
+                </p:nvSpPr>
+                <p:spPr/>
+                <p:txBody>
+                    <a:bodyPr/>
+                    <a:lstStyle/>
+                    <a:p>
+                        <a:endParaRPr lang="en-US"/>
+                    </a:p>
+                </p:txBody>
+            </p:sp>
+            <p:sp>
+                <p:nvSpPr>
+                    <p:cNvPr id="3" name="Content Placeholder 2"/>
+                    <p:cNvSpPr>
+                        <a:spLocks noGrp="1"/>
+                    </p:cNvSpPr>
+                    <p:nvPr>
+                        <p:ph idx="1"/>
+                    </p:nvPr>
+                </p:nvSpPr>
+                <p:spPr/>
+                <p:txBody>
+                    <a:bodyPr/>
+                    <a:lstStyle/>
+                    <a:p>
+                        <a:pPr lvl="0"/>
+                        <a:endParaRPr lang="en-US"/>
+                    </a:p>
+                </p:txBody>
+            </p:sp>
+        </p:spTree>
+    </p:cSld>
+    <p:clrMapOvr>
+        <a:masterClrMapping/>
+    </p:clrMapOvr>
+</p:sldLayout>`;
+        }
+
+        function createSlideMasterXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+    <p:cSld>
+        <p:bg>
+            <p:bgRef idx="1001">
+                <a:schemeClr val="bg1"/>
+            </p:bgRef>
+        </p:bg>
+        <p:spTree>
+            <p:nvGrpSpPr>
+                <p:cNvPr id="1" name=""/>
+                <p:cNvGrpSpPr/>
+                <p:nvPr/>
+            </p:nvGrpSpPr>
+            <p:grpSpPr>
+                <a:xfrm>
+                    <a:off x="0" y="0"/>
+                    <a:ext cx="0" cy="0"/>
+                    <a:chOff x="0" y="0"/>
+                    <a:chExt cx="0" cy="0"/>
+                </a:xfrm>
+            </p:grpSpPr>
+        </p:spTree>
+    </p:cSld>
+    <p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>
+    <p:sldLayoutIdLst>
+        <p:sldLayoutId id="2147483649" r:id="rId1"/>
+    </p:sldLayoutIdLst>
+    <p:txStyles>
+        <p:titleStyle>
+            <a:lvl1pPr>
+                <a:defRPr sz="4400" kern="1200">
+                    <a:solidFill>
+                        <a:schemeClr val="tx1"/>
+                    </a:solidFill>
+                    <a:latin typeface="+mj-lt"/>
+                    <a:ea typeface="+mj-ea"/>
+                    <a:cs typeface="+mj-cs"/>
+                </a:defRPr>
+            </a:lvl1pPr>
+        </p:titleStyle>
+        <p:bodyStyle>
+            <a:lvl1pPr marL="342900" indent="-342900">
+                <a:buFont typeface="Arial" pitchFamily="34" charset="0"/>
+                <a:buChar char="•"/>
+                <a:defRPr sz="1800">
+                    <a:solidFill>
+                        <a:schemeClr val="tx1"/>
+                    </a:solidFill>
+                    <a:latin typeface="+mn-lt"/>
+                    <a:ea typeface="+mn-ea"/>
+                    <a:cs typeface="+mn-cs"/>
+                </a:defRPr>
+            </a:lvl1pPr>
+        </p:bodyStyle>
+    </p:txStyles>
+</p:sldMaster>`;
+        }
+
+        function escapeXml(text) {
+            if (!text) return '';
+            return String(text).replace(/&/g, '&amp;')
+                              .replace(/</g, '&lt;')
+                              .replace(/>/g, '&gt;')
+                              .replace(/"/g, '&quot;')
+                              .replace(/'/g, '&apos;');
+        }
+
+        // Setup generate button
+        function setupGenerateButton() {
+            document.getElementById('generateBtn').addEventListener('click', async function() {
+                const inputText = document.getElementById('inputText').value.trim();
+                const guidance = document.getElementById('guidance').value.trim();
+                const targetSlides = document.getElementById('slideCount').value;
+                const generateNotes = document.getElementById('generateNotes').checked;
+                
+                // Validation
+                if (!inputText) {
+                    showError('Please enter some content to convert into a presentation.');
+                    return;
+                }
+
+                if (inputText.length < 50) {
+                    showError('Please provide more content (at least 50 characters) for a meaningful presentation.');
+                    return;
+                }
+
+                // Start generation process
+                this.disabled = true;
+                document.getElementById('loading').style.display = 'flex';
+                document.getElementById('progressBar').style.display = 'block';
+                document.getElementById('previewSection').style.display = 'none';
+
+                try {
+                    // Step 1: Analyze content
+                    updateProgress(20, 'Analyzing your content...');
+                    await new Promise(resolve => setTimeout(resolve, 800));
+
+                    // Step 2: Generate slides
+                    updateProgress(40, 'Generating slides...');
+                    const aiResponse = await callAI(inputText, guidance, parseInt(targetSlides) || null);
+                    generatedSlides = aiResponse.slides;
+
+                    // Step 3: Create PowerPoint file
+                    updateProgress(80, 'Creating PowerPoint file...');
+                    const pptxBlob = await createPowerPointFile(generatedSlides);
+
+                    // Step 4: Show preview
+                    updateProgress(100, 'Complete!');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    displayPreview(generatedSlides);
+                    
+                    // Setup download
+                    document.getElementById('downloadBtn').onclick = function() {
+                        saveAs(pptxBlob, 'AI_Generated_Presentation.pptx');
+                        showSuccess('Presentation downloaded successfully!');
+                    };
+
+                    showSuccess(`Successfully generated ${generatedSlides.length} slides!`);
+
+                } catch (error) {
+                    console.error('Generation failed:', error);
+                    showError(`Generation failed: ${error.message}`);
+                } finally {
+                    this.disabled = false;
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('progressBar').style.display = 'none';
+                }
+            });
+        }
+
+        // Display slide preview
+        function displayPreview(slides) {
+            const previewContainer = document.getElementById('previewSlides');
+            previewContainer.innerHTML = '';
+
+            slides.forEach((slide, index) => {
+                const slideDiv = document.createElement('div');
+                slideDiv.className = 'slide-preview';
+                
+                const contentHtml = slide.content.map(item => `<li>${escapeHtml(item)}</li>`).join('');
+                const speakerNotes = slide.speakerNotes || 'No speaker notes generated.';
+                
+                slideDiv.innerHTML = `
+                    <div class="slide-header">Slide ${index + 1} - ${slide.slideType.charAt(0).toUpperCase() + slide.slideType.slice(1)}</div>
+                    <div class="slide-content">
+                        <div class="slide-title">${escapeHtml(slide.title)}</div>
+                        <div class="slide-text">
+                            <ul style="padding-left: 15px; margin-top: 8px;">
+                                ${contentHtml}
+                            </ul>
+                        </div>
+                        ${document.getElementById('generateNotes').checked ? `<div class="slide-notes">Speaker Notes: ${escapeHtml(speakerNotes)}</div>` : ''}
+                    </div>
+                `;
+                
+                previewContainer.appendChild(slideDiv);
+            });
+
+            document.getElementById('previewSection').style.display = 'block';
+            document.getElementById('previewSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Setup generate button - complete implementation
+        function setupGenerateButton() {
+            document.getElementById('generateBtn').addEventListener('click', async function() {
+                const inputText = document.getElementById('inputText').value.trim();
+                const guidance = document.getElementById('guidance').value.trim();
+                const targetSlides = document.getElementById('slideCount').value;
+                const generateNotes = document.getElementById('generateNotes').checked;
+                
+                // Validation
+                if (!inputText) {
+                    showError('Please enter some content to convert into a presentation.');
+                    return;
+                }
+
+                if (inputText.length < 50) {
+                    showError('Please provide more content (at least 50 characters) for a meaningful presentation.');
+                    return;
+                }
+
+                // Start generation process
+                this.disabled = true;
+                document.getElementById('loading').style.display = 'flex';
+                document.getElementById('progressBar').style.display = 'block';
+                document.getElementById('previewSection').style.display = 'none';
+
+                try {
+                    // Step 1: Analyze content
+                    updateProgress(20, 'Analyzing your content...');
+                    await new Promise(resolve => setTimeout(resolve, 800));
+
+                    // Step 2: Generate slides
+                    updateProgress(40, 'Generating slides...');
+                    const aiResponse = await callAI(inputText, guidance, parseInt(targetSlides) || null);
+                    generatedSlides = aiResponse.slides;
+
+                    // Step 3: Create PowerPoint file
+                    updateProgress(80, 'Creating PowerPoint file...');
+                    const pptxBlob = await createPowerPointFile(generatedSlides);
+
+                    // Step 4: Show preview
+                    updateProgress(100, 'Complete!');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    displayPreview(generatedSlides);
+                    
+                    // Setup download
+                    document.getElementById('downloadBtn').onclick = function() {
+                        saveAs(pptxBlob, 'AI_Generated_Presentation.pptx');
+                        showSuccess('Presentation downloaded successfully!');
+                    };
+
+                    showSuccess(`Successfully generated ${generatedSlides.length} slides!`);
+
+                } catch (error) {
+                    console.error('Generation failed:', error);
+                    showError(`Generation failed: ${error.message}`);
+                } finally {
+                    this.disabled = false;
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('progressBar').style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
